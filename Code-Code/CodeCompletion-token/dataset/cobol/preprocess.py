@@ -12,6 +12,7 @@ import csv
 import tempfile
 import json
 import pdb
+import re
 #import pygments
 from pygments.token import Token
 from lexer import Lexer
@@ -37,6 +38,7 @@ class Tokenizer:
 
     def __init__(self, partition_id=None, dataset_name=None):
         self.lexer = Lexer()
+        self.lits = json.load(open("literals.json"))
     
 
     def load_tokens(self, src_path):
@@ -122,9 +124,111 @@ class Tokenizer:
         return dest_path
 
 
+    def process_string(self, token, special_chars={" ": "U+0020", ",": "U+002C"}):
+        str_quote_options = ["'''", '"""', "'", '"']
+        start_quote = ""
+        end_quote = ""
+        qualifier_regex = r"^[a-zA-Z]+"
+        qualifier_match = re.search(qualifier_regex, token)
+        # string qualifiers like 'r' for regex, 'f' for formatted string, 'b' for bytes, 'u' for unicode, etc (or combination of them)
+        qualifier = "" if not qualifier_match else qualifier_match[0]
+        # token string without qualifiers
+        token_string = re.sub(qualifier_regex, "", token)
+        # string literal without quotes
+        str_lit = token_string
+        for q in str_quote_options:
+            if token_string.startswith(q):
+                start_quote = q
+                str_lit = str_lit[len(q) :]
+                if token_string.endswith(q):
+                    end_quote = q
+                    str_lit = str_lit[: -len(q)]
+                break
+        # if start_quote in str_quote_options[:2]:
+        #     return ""
+        for sc in special_chars:
+            str_lit = str_lit.replace(sc, special_chars[sc])
+        return (
+            f"{qualifier}{start_quote}<STR_LIT:{str_lit}>{end_quote}"
+            if str_lit in self.lits['str']
+            else f"{qualifier}{start_quote}<STR_LIT>{end_quote}"
+        )
+
+
     def normalize_tokens(self, tokens):
         pdb.set_trace()
-        return tokens
+        out_tokens = []
+        prev_eol = False
+        prev_tokens = ''
+        prev_token_dot = False
+
+        for token_type,token_val in tokens:
+            if token_val == 'TO ':
+                pdb.set_trace()
+
+            if token_type.parent == Token.Literal.String:
+                prev_tokens += self.process_string(token_val)
+                prev_eol = False
+
+            elif token_type == Token.Literal.Number.Integer:
+                if token_val.strip() in self.lits['num']:
+                    prev_tokens += f"<NUM_LIT:{token_val.strip()}>"
+                else:
+                    prev_tokens += "<NUM_LIT>"
+                prev_eol = False
+
+            elif token_type == Token.Text and token_val == '\n':
+                if prev_eol:
+                    continue
+                if prev_token_dot:
+                    out_tokens.append(prev_tokens[:-1])
+                    out_tokens.append('.')
+                    prev_tokens = ''
+                    prev_token_dot = False
+                    out_tokens.append("<EOL>")
+                    prev_eol = True
+                elif prev_tokens:
+                    out_tokens.append(prev_tokens)
+                    prev_tokens = ''
+                else:   #TODO needs to be fixed: EOL only after dot    
+                    out_tokens.append("<EOL>")
+                    prev_eol = True
+
+            elif token_type == Token.Text.Whitespace:
+                if not prev_tokens:
+                    continue
+                if prev_token_dot:
+                    out_tokens.append(prev_tokens[:-1])
+                    out_tokens.append('.')
+                    prev_tokens = ''
+                    prev_token_dot = False
+                else:
+                    out_tokens.append(prev_tokens)
+                    prev_tokens = ''
+                prev_eol = False
+
+            elif token_type == Token.Punctuation and token_val.strip() == '.':
+                prev_token_dot = True
+                prev_tokens += token_val.strip()
+                prev_eol = False
+
+            else:
+                prev_tokens += token_val.strip()
+                prev_eol = False
+                
+            if prev_tokens:
+                if token_val.endswith(' ') or token_val.endswith('\n'):
+                    out_tokens.append(prev_tokens)
+                    prev_tokens = ''
+                    prev_eol = False
+                    
+
+        if out_tokens[0] == "<EOL>":
+            out_tokens = out_tokens[1:]
+        if out_tokens[-1] == "<EOL>":
+            out_tokens = out_tokens[:-1]
+
+        return out_tokens
 
 
     def tokenize_loaded_sample(self, dataset_name, sample, src_path):
@@ -133,6 +237,7 @@ class Tokenizer:
         tokens = self.load_tokens_nocompile(src_path)
         tokens = self.normalize_tokens(tokens)
         tokens = ["<s>"] + tokens + ["</s>"]
+        pdb.set_trace()
         tokenized_code = " ".join(tokens)
 
         dest_path = self.get_dest_path(src_path, dest_dir)
@@ -219,7 +324,6 @@ class Tokenizer:
                 continue
             ctr += 1    
             print(f"tokenizing sample #{ctr}: {sample_file}", flush=True)
-            pdb.set_trace()
             res = self.tokenize_loaded_sample(dataset_name, sample, src_path)
             self.set_finished_list(res, finished_list_file)
             print(f"tokenizing sample #{ctr}: {sample_file}")
