@@ -52,7 +52,8 @@ class Lexer():
         #with open('322.cbl') as fd:
         #with open('459.cbl') as fd:
         #with open('1085.cbl') as fd:
-        with open('588.cbl') as fd:
+        #with open('588.cbl') as fd:
+        with open('1725.cbl') as fd:
             code = fd.read()
 
         self.print_tokens(lexer, code)
@@ -129,20 +130,25 @@ class Lexer():
         return 'FAIL'
 
 
-    def preprocess_sample(self, sample_filepath, out_filename, cobol_mode='STRICT'):
+    def preprocess_sample(self, sample_filepath, out_filename, cobol_mode='BOTH'):
         compiler = "/usr/local/bin/cobc"
         res = False
 
-        if cobol_mode == 'STRICT':
+        if cobol_mode != 'FREE':
             cmd = [compiler, '-E', sample_filepath, '-o', out_filename]
-        else:     
-            assert(cobol_mode=='FREE')
+            res = self.run_cmd(cmd, out_filename, sample_filepath)
+         
+        if res is True:
+            return 'STRICT'
+
+        if cobol_mode != 'STRICT':
             cmd = [compiler, '-free', '-E', sample_filepath, '-o', out_filename]
+            res = self.run_cmd(cmd, out_filename, sample_filepath)
+        
+        if res is True:
+            return 'FREE'
 
-        if self.run_cmd(cmd, out_filename, sample_filepath) is False:
-            return 'FAIL'
-
-        return cobol_mode
+        return 'FAIL'
 
 
 
@@ -313,6 +319,34 @@ class Lexer():
             self.remove_file(tmp_filename)
 
         return res
+    
+
+    def preprocess_and_nocompile(self, sample_pathname, cobol_mode='STRICT', output_file=None):
+        if output_file:
+            tmp_filename = output_file
+        else:    
+            path_info = get_path_info(sample_pathname)
+            tmp_filename = path_info['folder'] + '/' + path_info['file_name_without_suffix'] + '_preprocessed' + path_info['suffix']
+
+        self.remove_file(tmp_filename)
+
+        res = self.preprocess_sample(sample_pathname, tmp_filename, cobol_mode=cobol_mode)
+        if res == 'FAIL':
+            print(f"Preprocessing failed ofr {sample_pathname}; should not happen")
+            return res
+       
+        #remove first line == preprocessor output
+        with open(tmp_filename) as fd:
+            code = fd.readlines()
+
+        with open(tmp_filename,'w') as fd:
+            for line in code[1:]:
+                fd.write(line)
+
+        if not output_file:
+            self.remove_file(tmp_filename)
+
+        return res
 
 
     def preprocess_and_lex_and_compile(self, sample_pathname, cobol_mode='STRICT'):
@@ -379,7 +413,7 @@ class Lexer():
             #pdb.set_trace()
             res = self.compile_sample(src_pathname, cobol_mode='BOTH')
             if res == 'FAIL':
-                print("Compilation failed for {sample_filename}; should not happen")
+                print(f"Compilation failed for {src_pathname}; should not happen")
                 input('Press key to continue')
 
             if res == 'FREE':
@@ -400,6 +434,6 @@ class Lexer():
 
 if __name__ == '__main__':
     obj = Lexer()
-    obj.lex_and_compile_samples()
-    #obj.example_lexer()
+    #obj.lex_and_compile_samples()
+    obj.example_lexer()
     #obj.example_lexer_perline()

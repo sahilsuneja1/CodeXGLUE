@@ -12,6 +12,8 @@ import csv
 import tempfile
 import json
 import pdb
+#import pygments
+from pygments.token import Token
 from lexer import Lexer
 
 sys.path.insert(0, '../')
@@ -41,7 +43,7 @@ class Tokenizer:
         result = []
         cobol_mode = self.lexer.compile_sample(src_path, cobol_mode='BOTH')
         if cobol_mode == 'FAIL':
-            print("Compilation failed for {sample_filename}; should not happen")
+            print(f"Compilation failed for {src_path}; should not happen")
             return result
 
         path_info = get_path_info(src_path)
@@ -58,6 +60,21 @@ class Tokenizer:
             return result
 
         result = code_tokens
+        return result
+    
+
+    def load_tokens_nocompile(self, src_path):
+        result = []
+
+        path_info = get_path_info(src_path)
+        preprocessed_file = path_info['folder'] + '/' + path_info['file_name_without_suffix'] + '_preprocessed' + path_info['suffix']
+
+        cobol_mode = self.lexer.preprocess_and_nocompile(src_path, cobol_mode='BOTH', output_file=preprocessed_file)
+        if cobol_mode == 'FAIL':
+            print(f"Preprocessing failed ofr {src_path}; should not happen")
+            return result
+
+        result = self.lexer.get_tokens_unfiltered(preprocessed_file, cobol_mode='FREE')
         return result
 
     
@@ -112,7 +129,8 @@ class Tokenizer:
 
     def tokenize_loaded_sample(self, dataset_name, sample, src_path):
         dest_dir = self.get_dest_dir(dataset_name)
-        tokens = self.tokenizer.load_tokens(self.input_src_path)
+        #tokens = self.load_tokens(src_path)
+        tokens = self.load_tokens_nocompile(src_path)
         tokens = self.normalize_tokens(tokens)
         tokens = ["<s>"] + tokens + ["</s>"]
         tokenized_code = " ".join(tokens)
@@ -191,6 +209,7 @@ class Tokenizer:
             sample_id_end += num_samples % num_partitions
 
         for sample_file in samples[sample_id_start: sample_id_end]:
+            pdb.set_trace()
             sample_path = samples_dir + '/' + sample_file
             src_path = scratch_dir + '/' + sample_file
             sample = self.load_sample(sample_path, src_path)
@@ -200,6 +219,7 @@ class Tokenizer:
                 continue
             ctr += 1    
             print(f"tokenizing sample #{ctr}: {sample_file}", flush=True)
+            pdb.set_trace()
             res = self.tokenize_loaded_sample(dataset_name, sample, src_path)
             self.set_finished_list(res, finished_list_file)
             print(f"tokenizing sample #{ctr}: {sample_file}")
@@ -221,7 +241,8 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    dataset_name = "cobol_opensource_validation"
+    #dataset_name = "cobol_opensource_validation"
+    dataset_name = "tmp_dataset"
     #dataset_name = "pretrain_cobol_data_improved_train_compiled"
     #dataset_name = "tmp_dataset"
     #work_dir_prefix = "/home/cobol_project/"
