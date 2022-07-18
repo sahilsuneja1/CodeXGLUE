@@ -158,70 +158,74 @@ class Tokenizer:
     def normalize_tokens(self, tokens):
         pdb.set_trace()
         out_tokens = []
-        prev_eol = False
         prev_tokens = ''
-        prev_token_dot = False
+        prev_eol = False
+        prev_token = ''
+        outstanding_eol= False
+        update_track_vars = True
 
         for token_type,token_val in tokens:
-            if token_val == 'TO ':
-                pdb.set_trace()
+            update_track_vars = True
 
             if token_type.parent == Token.Literal.String:
                 prev_tokens += self.process_string(token_val)
-                prev_eol = False
 
             elif token_type == Token.Literal.Number.Integer:
                 if token_val.strip() in self.lits['num']:
                     prev_tokens += f"<NUM_LIT:{token_val.strip()}>"
                 else:
                     prev_tokens += "<NUM_LIT>"
-                prev_eol = False
 
             elif token_type == Token.Text and token_val == '\n':
                 if prev_eol:
+                    prev_token = token_val
                     continue
-                if prev_token_dot:
+                if prev_token == '.':
                     out_tokens.append(prev_tokens[:-1])
                     out_tokens.append('.')
-                    prev_tokens = ''
-                    prev_token_dot = False
                     out_tokens.append("<EOL>")
+                    prev_tokens = ''
+                    prev_token = token_val
                     prev_eol = True
+                    update_track_vars = False
                 elif prev_tokens:
                     out_tokens.append(prev_tokens)
                     prev_tokens = ''
-                else:   #TODO needs to be fixed: EOL only after dot    
+                elif outstanding_eol is True:
                     out_tokens.append("<EOL>")
+                    prev_token = token_val
                     prev_eol = True
+                    outstanding_eol = False
+                    update_track_vars = False
 
             elif token_type == Token.Text.Whitespace:
                 if not prev_tokens:
+                    prev_token = ' '
                     continue
-                if prev_token_dot:
+                if prev_token == '.':
                     out_tokens.append(prev_tokens[:-1])
                     out_tokens.append('.')
                     prev_tokens = ''
-                    prev_token_dot = False
+                    prev_token = ' '
+                    prev_eol = False
+                    outstanding_eol = True
+                    update_track_vars = False
                 else:
                     out_tokens.append(prev_tokens)
                     prev_tokens = ''
-                prev_eol = False
-
-            elif token_type == Token.Punctuation and token_val.strip() == '.':
-                prev_token_dot = True
-                prev_tokens += token_val.strip()
-                prev_eol = False
 
             else:
                 prev_tokens += token_val.strip()
-                prev_eol = False
                 
             if prev_tokens:
                 if token_val.endswith(' ') or token_val.endswith('\n'):
                     out_tokens.append(prev_tokens)
                     prev_tokens = ''
-                    prev_eol = False
                     
+            if update_track_vars:        
+                prev_token = token_val.strip()
+                prev_eol = False
+                outstanding_eol = False
 
         if out_tokens[0] == "<EOL>":
             out_tokens = out_tokens[1:]
