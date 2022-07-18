@@ -156,7 +156,7 @@ class Tokenizer:
 
 
     def normalize_tokens(self, tokens):
-        pdb.set_trace()
+        #pdb.set_trace()
         out_tokens = []
         prev_tokens = ''
         prev_eol = False
@@ -241,7 +241,7 @@ class Tokenizer:
         tokens = self.load_tokens_nocompile(src_path)
         tokens = self.normalize_tokens(tokens)
         tokens = ["<s>"] + tokens + ["</s>"]
-        pdb.set_trace()
+        #pdb.set_trace()
         tokenized_code = " ".join(tokens)
 
         dest_path = self.get_dest_path(src_path, dest_dir)
@@ -318,7 +318,7 @@ class Tokenizer:
             sample_id_end += num_samples % num_partitions
 
         for sample_file in samples[sample_id_start: sample_id_end]:
-            pdb.set_trace()
+            #pdb.set_trace()
             sample_path = samples_dir + '/' + sample_file
             src_path = scratch_dir + '/' + sample_file
             sample = self.load_sample(sample_path, src_path)
@@ -350,7 +350,8 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     #dataset_name = "cobol_opensource_validation"
-    dataset_name = "tmp_dataset"
+    #dataset_name = "tmp_dataset"
+    dataset_name = "codenet_cobol_code_completion/test"
     #dataset_name = "pretrain_cobol_data_improved_train_compiled"
     #dataset_name = "tmp_dataset"
     #work_dir_prefix = "/home/cobol_project/"
