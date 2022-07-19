@@ -52,8 +52,9 @@ class Lexer():
         #with open('322.cbl') as fd:
         #with open('459.cbl') as fd:
         #with open('1085.cbl') as fd:
-        #with open('588.cbl') as fd:
-        with open('1725.cbl') as fd:
+        with open('588.cbl') as fd:
+        #with open('1725.cbl') as fd:
+        #with open('23_1.cbl') as fd:
             code = fd.read()
 
         self.print_tokens(lexer, code)

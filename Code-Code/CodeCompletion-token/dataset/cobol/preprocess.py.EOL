@@ -156,6 +156,7 @@ class Tokenizer:
 
 
     def normalize_tokens(self, tokens):
+        # a lot of complexity in following mainly to preocess floating point numbers correctly
         #pdb.set_trace()
         out_tokens = []
         prev_tokens = ''
@@ -168,30 +169,74 @@ class Tokenizer:
             update_track_vars = True
 
             if token_type.parent == Token.Literal.String:
-                out_tokens.append(self.process_string(token_val))
+                prev_tokens += self.process_string(token_val)
 
             elif token_type == Token.Literal.Number.Integer:
                 if token_val.strip() in self.lits['num']:
-                    out_tokens.append(f"<NUM_LIT:{token_val.strip()}>")
+                    prev_tokens += f"<NUM_LIT:{token_val.strip()}>"
                 else:
-                    out_tokens.append("<NUM_LIT>")
+                    prev_tokens += "<NUM_LIT>"
 
             elif token_type == Token.Text and token_val == '\n':
                 if prev_eol:
+                    prev_token = token_val
                     continue
+                if prev_token == '.':
+                    out_tokens.append(prev_tokens[:-1])
+                    out_tokens.append('.')
+                    #out_tokens.append("<EOL>")     #v1:using EOL only after .
+                    prev_tokens = ''
+                    prev_token = token_val
+                    prev_eol = True
+                    update_track_vars = False
+                elif prev_tokens:
+                    out_tokens.append(prev_tokens)
+                    prev_tokens = ''
+                elif outstanding_eol is True:
+                    #out_tokens.append("<EOL>")     #v1: using EOL only after .
+                    prev_token = token_val
+                    prev_eol = True
+                    outstanding_eol = False
+                    update_track_vars = False
+                #v2: enforcing EOL for all newlines     
+                #out_tokens.append("<EOL>")
+                #prev_token = token_val
+                #prev_eol = True
+                #update_track_vars = False
 
             elif token_type == Token.Text.Whitespace:
-                continue
+                if not prev_tokens:
+                    prev_token = ' '
+                    continue
+                if prev_token == '.':
+                    out_tokens.append(prev_tokens[:-1])
+                    out_tokens.append('.')
+                    prev_tokens = ''
+                    prev_token = ' '
+                    prev_eol = False
+                    outstanding_eol = True
+                    update_track_vars = False
+                else:
+                    out_tokens.append(prev_tokens)
+                    prev_tokens = ''
 
             else:
-                out_tokens.append(token_val.strip())
+                prev_tokens += token_val.strip()
                 
+            if prev_tokens:
+                if token_val.endswith(' ') or token_val.endswith('\n'):
+                    out_tokens.append(prev_tokens)
+                    prev_tokens = ''
+                    
+            if update_track_vars:        
+                prev_token = token_val.strip()
+                prev_eol = False
+                outstanding_eol = False
+
             #v2: enforcing EOL for all newlines 
             if token_val.endswith('\n'):
                 out_tokens.append("<EOL>")
                 prev_eol = True
-            else:
-                prev_eol = False
 
         while out_tokens[0] == "<EOL>":
             out_tokens = out_tokens[1:]
