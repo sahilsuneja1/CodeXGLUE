@@ -18,7 +18,7 @@ def extract_files_from_csv(filename, out_dir):
             write_file(out_dir, row)
         
 
-def run_extract_raw_samples():
+def run_extract_raw_samples_codenet():
     dirname = "codenet_cobol_code_completion/"
 
     for filename in os.listdir(dirname):
@@ -34,6 +34,33 @@ def run_extract_raw_samples():
 
         print(f"Extracting files from {filename}")
         extract_files_from_csv(dirname + filename, out_dir)
+
+
+def extract_files(filename, out_dir):
+    with open(filename) as fd:
+        pass
+        #TODO
+
+def run_extract_raw_samples_rosetta():
+    dirname = "rosetta/"
+
+    for filename in os.listdir(dirname):
+        if not filename.endswith('.cob'):
+            continue
+        
+        dataset_split = filename.split('.cob')[0].split('-')[-1]
+        out_dir = dirname + dataset_split + '/'
+
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        os.makedirs(out_dir)
+        
+        print(f"Extracting files from {filename}")
+        extract_files(dirname + filename, out_dir)
+
+
+
+
 
 def combine_files(dirname, dataset_split, sample_ids):
     fdw = open(dirname+dataset_split+'.txt', 'w')
@@ -102,6 +129,7 @@ def run_combine_preprocessed_samples_linelevel_benchmark():
         combine_files_linelevel(dirname, dataset_split, sample_ids)
 
 
-#run_extract_raw_samples()
+#run_extract_raw_samples_codenet()
+run_extract_raw_samples_rosetta()
 #run_combine_preprocessed_samples()
-run_combine_preprocessed_samples_linelevel_benchmark()
+#run_combine_preprocessed_samples_linelevel_benchmark()
